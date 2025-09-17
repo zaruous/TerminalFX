@@ -1,3 +1,4 @@
 ----
-mvn clean install source:jar deploy -f pom.xml
+mvn clean install source:jar -f pom.xml
+mvn deploy -f pom.xml
 ----
