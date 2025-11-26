@@ -1,29 +1,35 @@
 package com.kodedu.terminalfx;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kodedu.terminalfx.annotation.WebkitCall;
-import com.kodedu.terminalfx.config.TerminalConfig;
-import com.kodedu.terminalfx.helper.ThreadHelper;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyIntegerProperty;
-import javafx.beans.property.ReadOnlyIntegerWrapper;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.layout.Pane;
-import javafx.scene.web.WebEngine;
-import javafx.scene.web.WebView;
-import netscape.javascript.JSObject;
-import org.apache.commons.io.FileUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+
+import org.apache.commons.io.FileUtils;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kodedu.terminalfx.annotation.WebkitCall;
+import com.kodedu.terminalfx.config.PropertiesUtil;
+import com.kodedu.terminalfx.config.TerminalConfig;
+import com.kodedu.terminalfx.helper.ThreadHelper;
+
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerWrapper;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.fxml.FXML;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.Pane;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
+import netscape.javascript.JSObject;
 
 public class TerminalView extends Pane {
 
@@ -52,6 +58,7 @@ public class TerminalView extends Pane {
 	}
 
 	public TerminalView() {
+		
 		initializeResources();
 		webView = new WebView();
 		columnsProperty = new ReadOnlyIntegerWrapper(150);
@@ -80,7 +87,6 @@ public class TerminalView extends Pane {
 		Path htmlPath = tempDirectory.resolve("hterm.html");
 		webEngine().load(htmlPath.toUri().toString());
 	}
-
 	private void initializeResources() {
 		try {
 			if(Objects.isNull(tempDirectory) || Files.notExists(tempDirectory)){

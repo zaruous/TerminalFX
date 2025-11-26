@@ -1,23 +1,29 @@
 package com.kodedu.terminalfx;
 
-import com.kodedu.terminalfx.config.TabNameGenerator;
-import com.kodedu.terminalfx.config.TerminalConfig;
-import com.kodedu.terminalfx.helper.IOHelper;
-import com.kodedu.terminalfx.helper.ThreadHelper;
-import com.pty4j.PtyProcess;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.Tab;
-import javafx.scene.input.KeyEvent;
-
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Path;
 import java.util.Objects;
 
+import com.kodedu.terminalfx.config.TabNameGenerator;
+import com.kodedu.terminalfx.config.TerminalConfig;
+import com.kodedu.terminalfx.helper.IOHelper;
+import com.kodedu.terminalfx.helper.ThreadHelper;
+import com.pty4j.PtyProcess;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.Tab;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
+
+/**
+ * 
+ */
 public class TerminalTab extends Tab {
 
     private final Terminal terminal;
@@ -52,13 +58,39 @@ public class TerminalTab extends Tab {
         final MenuItem closeTab = new MenuItem("Close");
         final MenuItem closeOthers = new MenuItem("Close Others");
         final MenuItem closeAll = new MenuItem("Close All");
+        
+        // Rename Tab 메뉴 아이템 추가
+        final MenuItem renameTab = new MenuItem("Rename Tab");
 
         newTab.setOnAction(this::newTerminal);
         closeTab.setOnAction(this::closeTerminal);
         closeAll.setOnAction(this::closeAllTerminal);
         closeOthers.setOnAction(this::closeOtherTerminals);
-
-        contextMenu.getItems().addAll(newTab, closeTab, closeOthers, closeAll);
+        renameTab.setOnAction(event -> {
+			//rename 다이얼로그 표시
+			Dialog<String> dialog = new Dialog<>();
+			dialog.setTitle("Rename Tab");
+			dialog.setHeaderText("Enter new tab name:");
+			HBox hBox = new HBox();
+			javafx.scene.control.TextField textField = new javafx.scene.control.TextField();
+			hBox.getChildren().add(textField);
+			dialog.getDialogPane().setContent(hBox);
+			dialog.getDialogPane().getButtonTypes().addAll(javafx.scene.control.ButtonType.OK, javafx.scene.control.ButtonType.CANCEL);
+			dialog.setResultConverter(dialogButton -> {
+			    if (dialogButton == javafx.scene.control.ButtonType.OK) {
+			        return textField.getText();
+			    }
+			    return null;
+			});
+			java.util.Optional<String> result = dialog.showAndWait();
+			result.ifPresent(newName -> {
+			    if (!newName.trim().isEmpty()) {
+			        setText(newName.trim());
+			    }
+			});
+			
+		});
+        contextMenu.getItems().addAll(newTab, renameTab, closeTab, closeOthers, closeAll);
         this.setContextMenu(contextMenu);
 
         setContent(terminal);
