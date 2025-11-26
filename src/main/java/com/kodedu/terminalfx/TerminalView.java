@@ -61,6 +61,7 @@ public class TerminalView extends Pane {
 		
 		initializeResources();
 		webView = new WebView();
+		
 		columnsProperty = new ReadOnlyIntegerWrapper(150);
 		rowsProperty = new ReadOnlyIntegerWrapper(10);
 		inputReaderProperty = new SimpleObjectProperty<>();

@@ -15,10 +15,15 @@ public class TerminalAppStarter extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
-        InputStream sceneStream = TerminalAppStarter.class.getResourceAsStream("/fxml/Terminal_Scene.fxml");
+//        InputStream sceneStream = TerminalAppStarter.class.getResourceAsStream("/fxml/Terminal_Scene.fxml");
+//        FXMLLoader loader = new FXMLLoader();
+//        Parent root = loader.load(sceneStream);
+
+        
+        InputStream sceneStream = TerminalAppStarter.class.getResourceAsStream("/fxml/Explorer.fxml");
         FXMLLoader loader = new FXMLLoader();
         Parent root = loader.load(sceneStream);
-
+        
         Scene scene = new Scene(root);
         scene.getStylesheets().add(TerminalAppStarter.class.getResource("/styles/Styles.css").toExternalForm());
 
