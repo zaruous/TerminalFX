@@ -1,7 +1,19 @@
 package com.kodedu.terminalfx;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.util.Comparator;
+import java.util.ResourceBundle;
+import java.util.stream.Stream;
+
 import com.kodedu.terminalfx.config.FileManager;
+
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -16,17 +28,14 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.util.Comparator;
-import java.util.Optional;
-import java.util.ResourceBundle;
-import java.util.stream.Stream;
-
-public class ExplorerController implements Initializable {
+public class ExplorerController implements Initializable, Adapterable {
 
 	@FXML
 	private TreeTableView<File> tvExplorer;
@@ -44,7 +53,20 @@ public class ExplorerController implements Initializable {
 	private Button deleteButton;
 
 	private final File rootFile = FileManager.getInstance().getRootFile();
-
+	private boolean textSetProgrammatically = false;
+	
+	class TextEvent 
+	{
+		static final KeyCombination saveCombination = new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN);
+		static final KeyCombination exeuctionCombination = new KeyCodeCombination(KeyCode.F5);	
+	}
+	
+	class TreeEvent {
+		static final KeyCombination renameBombination = new KeyCodeCombination(KeyCode.F2);
+	}
+	
+	private Adapter adapter;
+	ObjectProperty<File> currentFile = new SimpleObjectProperty<File>();
 	@Override
 	public void initialize(URL location, ResourceBundle resources) {
 		nameColumn.setCellValueFactory(param -> new ReadOnlyStringWrapper(param.getValue().getValue().getName()));
@@ -54,30 +76,43 @@ public class ExplorerController implements Initializable {
 		tvExplorer.setRoot(root);
 		tvExplorer.setShowRoot(true);
 
-		tvExplorer.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-			if (newValue != null) {
-				fileContentArea.setEditable(false);
-				File selectedFile = newValue.getValue();
-				filePathLabel.setText(selectedFile.getAbsolutePath());
-				if (selectedFile.isFile()) {
-//					if (selectedFile.length() > 1024 * 1024) { // 1 MB
-//						fileContentArea.setText("File is too large to display.");
-//						return;
-//					}
-					try {
-						String content = new String(Files.readAllBytes(selectedFile.toPath()));
-						fileContentArea.setText(content);
-						fileContentArea.setEditable(true);
-					} catch (IOException | OutOfMemoryError e) {
-						fileContentArea.setText("Cannot display binary or very large file.");
+		tvExplorer.addEventHandler(KeyEvent.KEY_PRESSED, this::tvExplorerOnKeyPress);
+		tvExplorer.addEventFilter(MouseEvent.MOUSE_CLICKED, ev->{
+			
+			if(ev.getClickCount() == 2 && ev.getButton() == MouseButton.PRIMARY)
+			{
+				ev.consume();
+				TreeItem<File> newValue = tvExplorer.getSelectionModel().getSelectedItem();
+				if (newValue != null) {
+					if(currentFile.get() == newValue.getValue())
+					{
+						return;
+					}
+					
+					fileContentArea.setEditable(false);
+					File selectedFile = newValue.getValue();
+					filePathLabel.setText(selectedFile.getAbsolutePath());
+					if (selectedFile.isFile()) {
+						try {
+							String content = new String(Files.readAllBytes(selectedFile.toPath()));
+							textSetProgrammatically = true;
+							fileContentArea.setText(content);
+							textSetProgrammatically = false;
+							fileContentArea.setEditable(true);
+						} catch (IOException | OutOfMemoryError e) {
+							fileContentArea.setText("Cannot display binary or very large file.");
+						}
+						currentFile.set(selectedFile);
+					} else {
+						fileContentArea.clear();
 					}
 				} else {
+					filePathLabel.setText("No file selected");
 					fileContentArea.clear();
 				}
-			} else {
-				filePathLabel.setText("No file selected");
-				fileContentArea.clear();
 			}
+			
+		
 		});
 
 		filterField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -94,6 +129,101 @@ public class ExplorerController implements Initializable {
 				}
 			}
 		});
+
+		fileContentArea.textProperty().addListener((observable, oldValue, newValue) -> {
+			if (textSetProgrammatically) {
+				return;
+			}
+			TreeItem<File> selectedItem = tvExplorer.getSelectionModel().getSelectedItem();
+			if (selectedItem != null && selectedItem.getValue().isFile()) {
+				String currentLabel = filePathLabel.getText();
+				if (!currentLabel.endsWith(" *")) {
+					filePathLabel.setText(currentLabel + " *");
+				}
+			}
+		});
+
+		fileContentArea.setOnKeyPressed(event -> {
+			if (TextEvent.saveCombination.match(event)) {
+				saveFile();
+				event.consume();
+			}
+			else if(TextEvent.exeuctionCombination.match(event))
+			{
+				adapter.getFxmlController().execute(  fileContentArea.getText() );
+				
+			}
+		});
+	}
+	
+	
+	void tvExplorerOnKeyPress(KeyEvent ke) {
+		
+		if(TreeEvent.renameBombination.match(ke)) {
+			
+			
+			TreeItem<File> selectedItem = tvExplorer.getSelectionModel().getSelectedItem();
+			if(selectedItem == null)return;
+			File value = selectedItem.getValue();
+			if(value == null || value.isDirectory() || !value.exists())
+			{
+				return;
+			}
+			ke.consume();
+			TextInputDialog dialog = new TextInputDialog(value.getName());
+			dialog.setTitle("Rename File");
+			dialog.setHeaderText("Enter the new file name. " + value.getAbsolutePath());
+			dialog.setContentText("File name:");
+
+			final File parentDir = value.getParentFile();
+
+			dialog.showAndWait().ifPresent(fileName -> {
+				if (fileName.isEmpty()) {
+					showAlert("Invalid Name", "File name cannot be empty.");
+					return;
+				}
+				
+				File dest = new File(parentDir, fileName);
+				if(value.renameTo(dest)) {
+					selectedItem.setValue(dest);	
+				}
+				
+//				try {
+//					if (newFile.createNewFile()) {
+//						TreeItem<File> newItem = new LazyFileTreeItem(newFile);
+//						parentItem.getChildren().add(newItem);
+//						// Sort children to maintain order
+//						parentItem.getChildren().sort(Comparator
+//								.comparing((TreeItem<File> ti) -> ti.getValue().isDirectory()).reversed()
+//								.thenComparing(ti -> ti.getValue().getName()));
+//					} else {
+//						showAlert("Error", "Could not create file. It may already exist.");
+//					}
+//				} catch (IOException e) {
+//					showAlert("Error", "An IO error occurred: " + e.getMessage());
+//				}
+			});
+		}
+		
+	}
+
+	private void saveFile() {
+		TreeItem<File> selectedItem = tvExplorer.getSelectionModel().getSelectedItem();
+		if (selectedItem == null || selectedItem.getValue().isDirectory()) {
+			showAlert("Save Error", "No file is selected or the selected item is a directory.");
+			return;
+		}
+
+		File fileToSave = selectedItem.getValue();
+		String content = fileContentArea.getText();
+
+		try {
+			Files.writeString(fileToSave.toPath(), content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+			filePathLabel.setText(fileToSave.getAbsolutePath());
+			showAlert("Success", "File saved successfully.");
+		} catch (IOException e) {
+			showAlert("Save Error", "Could not save file: " + e.getMessage());
+		}
 	}
 
 	private TreeItem<File> createFilteredTree(File file, String filter) {
@@ -273,5 +403,10 @@ public class ExplorerController implements Initializable {
 			}
 			return FXCollections.emptyObservableList();
 		}
+	}
+
+	@Override
+	public void setAdapter(Adapter adapter) {
+		this.adapter = adapter;
 	}
 }
