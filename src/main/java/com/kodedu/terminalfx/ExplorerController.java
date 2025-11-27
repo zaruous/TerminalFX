@@ -21,7 +21,9 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
@@ -53,14 +55,17 @@ public class ExplorerController implements Initializable, Adapterable {
 	private Button deleteButton;
 
 	private final File rootFile = FileManager.getInstance().getRootFile();
+	// 파일 내용 영역에 텍스트가 프로그램적으로 설정되었는지 여부를 나타냅니다.
+	// 사용자 입력과 프로그램적 변경을 구분하여 리스너의 불필요한 트리거를 방지합니다.
 	private boolean textSetProgrammatically = false;
 	
+	//텍스트 이디터 단축키 정의
 	class TextEvent 
 	{
 		static final KeyCombination saveCombination = new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN);
 		static final KeyCombination exeuctionCombination = new KeyCodeCombination(KeyCode.F5);	
 	}
-	
+	//트리뷰 단축키 정의
 	class TreeEvent {
 		static final KeyCombination renameBombination = new KeyCodeCombination(KeyCode.F2);
 	}
@@ -76,6 +81,27 @@ public class ExplorerController implements Initializable, Adapterable {
 		tvExplorer.setRoot(root);
 		tvExplorer.setShowRoot(true);
 
+		
+		/* 컨텍스트 메뉴 */
+		final ContextMenu contextMenu = new ContextMenu();
+		final MenuItem newFolderMenuItem = new MenuItem("New Folder");
+		newFolderMenuItem.setOnAction(e -> handleNewFolder());
+		final MenuItem renameMenuItem = new MenuItem("Rename");
+		renameMenuItem.setOnAction(e -> renameFile());
+
+		tvExplorer.setContextMenu(contextMenu);
+		tvExplorer.setOnContextMenuRequested(event -> {
+			contextMenu.getItems().clear();
+			TreeItem<File> selectedItem = tvExplorer.getSelectionModel().getSelectedItem();
+			if (selectedItem != null) {
+				if (selectedItem.getValue().isDirectory()) {
+					contextMenu.getItems().add(newFolderMenuItem);
+				} else {
+					contextMenu.getItems().add(renameMenuItem);
+				}
+			}
+		});
+		/*트리뷰 이벤트 처리. */
 		tvExplorer.addEventHandler(KeyEvent.KEY_PRESSED, this::tvExplorerOnKeyPress);
 		tvExplorer.addEventFilter(MouseEvent.MOUSE_CLICKED, ev->{
 			
@@ -142,7 +168,6 @@ public class ExplorerController implements Initializable, Adapterable {
 				}
 			}
 		});
-
 		fileContentArea.setOnKeyPressed(event -> {
 			if (TextEvent.saveCombination.match(event)) {
 				saveFile();
@@ -151,7 +176,6 @@ public class ExplorerController implements Initializable, Adapterable {
 			else if(TextEvent.exeuctionCombination.match(event))
 			{
 				adapter.getFxmlController().execute(  fileContentArea.getText() );
-				
 			}
 		});
 	}
@@ -160,53 +184,93 @@ public class ExplorerController implements Initializable, Adapterable {
 	void tvExplorerOnKeyPress(KeyEvent ke) {
 		
 		if(TreeEvent.renameBombination.match(ke)) {
-			
-			
-			TreeItem<File> selectedItem = tvExplorer.getSelectionModel().getSelectedItem();
-			if(selectedItem == null)return;
-			File value = selectedItem.getValue();
-			if(value == null || value.isDirectory() || !value.exists())
-			{
-				return;
-			}
 			ke.consume();
-			TextInputDialog dialog = new TextInputDialog(value.getName());
-			dialog.setTitle("Rename File");
-			dialog.setHeaderText("Enter the new file name. " + value.getAbsolutePath());
-			dialog.setContentText("File name:");
-
-			final File parentDir = value.getParentFile();
-
-			dialog.showAndWait().ifPresent(fileName -> {
-				if (fileName.isEmpty()) {
-					showAlert("Invalid Name", "File name cannot be empty.");
-					return;
-				}
-				
-				File dest = new File(parentDir, fileName);
-				if(value.renameTo(dest)) {
-					selectedItem.setValue(dest);	
-				}
-				
-//				try {
-//					if (newFile.createNewFile()) {
-//						TreeItem<File> newItem = new LazyFileTreeItem(newFile);
-//						parentItem.getChildren().add(newItem);
-//						// Sort children to maintain order
-//						parentItem.getChildren().sort(Comparator
-//								.comparing((TreeItem<File> ti) -> ti.getValue().isDirectory()).reversed()
-//								.thenComparing(ti -> ti.getValue().getName()));
-//					} else {
-//						showAlert("Error", "Could not create file. It may already exist.");
-//					}
-//				} catch (IOException e) {
-//					showAlert("Error", "An IO error occurred: " + e.getMessage());
-//				}
-			});
+			renameFile();
 		}
 		
 	}
 
+	private void renameFile() {
+		TreeItem<File> selectedItem = tvExplorer.getSelectionModel().getSelectedItem();
+		if (selectedItem == null)
+			return;
+		File value = selectedItem.getValue();
+		if (value == null || value.isDirectory() || !value.exists()) {
+			return;
+		}
+		
+		TextInputDialog dialog = new TextInputDialog(value.getName());
+		dialog.setTitle("Rename File");
+		dialog.setHeaderText("Enter the new file name. " + value.getAbsolutePath());
+		dialog.setContentText("File name:");
+
+		final File parentDir = value.getParentFile();
+
+		dialog.showAndWait().ifPresent(fileName -> {
+			if (fileName.isEmpty()) {
+				showAlert("Invalid Name", "File name cannot be empty.");
+				return;
+			}
+
+			File dest = new File(parentDir, fileName);
+			if (value.renameTo(dest)) {
+				selectedItem.setValue(dest);
+			} else {
+				showAlert("Error", "Could not rename file.");
+			}
+
+		});
+	}
+	
+	private void handleNewFolder() {
+		TreeItem<File> selectedItem = tvExplorer.getSelectionModel().getSelectedItem();
+
+		File parentDir;
+		TreeItem<File> parentItem;
+
+		if (selectedItem == null) {
+			showAlert("No Selection", "Please select a directory to create a new folder in.");
+			return;
+		}
+
+		if (selectedItem.getValue().isDirectory()) {
+			parentDir = selectedItem.getValue();
+			parentItem = selectedItem;
+		} else {
+			parentDir = selectedItem.getValue().getParentFile();
+			parentItem = selectedItem.getParent();
+		}
+
+		if (parentItem == null) {
+			showAlert("Invalid Selection", "Cannot determine parent directory.");
+			return;
+		}
+
+		TextInputDialog dialog = new TextInputDialog("newfolder");
+		dialog.setTitle("New Folder");
+dialog.setHeaderText("Enter the name for the new folder in\n" + parentDir.getAbsolutePath());
+		dialog.setContentText("Folder name:");
+
+		dialog.showAndWait().ifPresent(folderName -> {
+			if (folderName.isEmpty()) {
+				showAlert("Invalid Name", "Folder name cannot be empty.");
+				return;
+			}
+			File newFolder = new File(parentDir, folderName);
+			if (newFolder.mkdir()) {
+				TreeItem<File> newItem = new LazyFileTreeItem(newFolder);
+				parentItem.getChildren().add(newItem);
+				// Sorting to keep folders on top
+				parentItem.getChildren().sort(Comparator.comparing((TreeItem<File> ti) -> ti.getValue().isDirectory())
+						.reversed().thenComparing(ti -> ti.getValue().getName()));
+				parentItem.setExpanded(true); // Expand to show the new folder
+			} else {
+				showAlert("Error",
+						"Could not create folder. It may already exist or you may not have permission.");
+			}
+		});
+	}
+	
 	private void saveFile() {
 		TreeItem<File> selectedItem = tvExplorer.getSelectionModel().getSelectedItem();
 		if (selectedItem == null || selectedItem.getValue().isDirectory()) {
@@ -408,5 +472,13 @@ public class ExplorerController implements Initializable, Adapterable {
 	@Override
 	public void setAdapter(Adapter adapter) {
 		this.adapter = adapter;
+	}
+	
+	/**
+	 * 저장되지않는 내용이 있는지 확인한다.
+	 * @return
+	 */
+	public boolean isDirty() {
+		return filePathLabel.getText().endsWith(" *");
 	}
 }
