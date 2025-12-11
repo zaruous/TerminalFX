@@ -18,9 +18,11 @@ public class FileManager {
 	File scriptDir;
 	private FileManager() {
 		this.prop = PropertiesUtil.createOrLoad(TerminalView.class, ()->{
-			return PropertiesUtil.of(Map.of("manageDir",""));}
+			return PropertiesUtil.of(Map.of("manageDir",".script"));}
 		);
 		String property = this.prop.getProperty("manageDir", ".script");
+		if(property == null || property.isBlank())
+			property = ".script";
 		scriptDir = new File(property);
 		if(!scriptDir.exists())scriptDir.mkdirs();
 	}

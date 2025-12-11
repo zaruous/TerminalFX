@@ -90,6 +90,8 @@ public class FXMLController implements Initializable, Adapterable {
     	TerminalTab t = (TerminalTab)selectedItem;
     	String[] split = command.split("\n");
     	for (String cmd : split) {
+    		if(cmd.trim().startsWith("#")) continue;
+    		if(cmd.trim().isEmpty())continue;
 			t.getTerminal().command(cmd + "\r");
     	}
 	}
