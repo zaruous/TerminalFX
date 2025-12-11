@@ -1,15 +1,12 @@
 package com.kodedu.terminalfx;
 
-import com.kodedu.terminalfx.annotation.WebkitCall;
-import com.kodedu.terminalfx.config.TerminalConfig;
-import com.kodedu.terminalfx.helper.ThreadHelper;
-import com.pty4j.PtyProcess;
-import com.pty4j.WinSize;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import org.apache.commons.lang3.SystemUtils;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +14,18 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import org.apache.commons.lang3.SystemUtils;
+
+import com.kodedu.terminalfx.annotation.WebkitCall;
+import com.kodedu.terminalfx.config.TerminalConfig;
+import com.kodedu.terminalfx.helper.ThreadHelper;
+import com.pty4j.PtyProcess;
+import com.pty4j.PtyProcessBuilder;
+import com.pty4j.WinSize;
+
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 
 public class Terminal extends TerminalView {
 
@@ -79,9 +88,9 @@ public class Terminal extends TerminalView {
         System.setProperty("PTY_LIB_FOLDER", dataDir.resolve("libpty").toString());
 
         if (Objects.nonNull(terminalPath) && Files.exists(terminalPath)) {
-            this.process = PtyProcess.exec(termCommand, envs, terminalPath.toString());
+            this.process = exec(termCommand, envs, terminalPath.toString());
         } else {
-            this.process = PtyProcess.exec(termCommand, envs, getUserHome().toString());
+            this.process = exec(termCommand, envs, getUserHome().toString());
         }
 
         columnsProperty().addListener(evt -> updateWinSize());
@@ -96,6 +105,38 @@ public class Terminal extends TerminalView {
         countDownLatch.countDown();
 
         process.waitFor();
+    }
+    
+    /**
+     * @param command
+     * @param environment
+     * @param workingDirectory
+     * @return
+     * @throws IOException
+     */
+    static PtyProcess exec(String[] command, Map<String, String> environment, String workingDirectory) throws IOException {
+    	return exec(command, environment, workingDirectory, false, false, null);
+    }
+    
+    /**
+     * @param command
+     * @param environment
+     * @param workingDirectory
+     * @param console
+     * @param cygwin
+     * @param logFile
+     * @return
+     * @throws IOException
+     */
+    static PtyProcess exec(String[] command, Map<String, String> environment, String workingDirectory, boolean console, boolean cygwin,
+            File logFile) throws IOException {
+    	PtyProcessBuilder builder = new PtyProcessBuilder(command)
+    	        .setEnvironment(environment)
+    	        .setDirectory(workingDirectory)
+    	        .setConsole(console)
+    	        .setCygwin(cygwin)
+    	        .setLogFile(logFile);
+    	    return builder.start();
     }
 
     private Path getDataDir() {
