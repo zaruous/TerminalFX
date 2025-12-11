@@ -11,6 +11,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -28,13 +29,12 @@ public class TerminalAppStarter extends Application {
 		ExplorerController explorerController = null;
 		FXMLController fxmlController = null;
 		Adapter adapter = new Adapter();
-		var pane = new SplitPane();
-		pane.setDividerPosition(0, 0.3);
+		Node[] childrens = new Node[2];
 		try (InputStream sceneStream = TerminalAppStarter.class.getResourceAsStream("/fxml/Explorer.fxml")) {
 			FXMLLoader loader = new FXMLLoader();
 			Parent root2 = loader.load(sceneStream);
 			explorerController = loader.getController();
-			pane.getItems().add(root2);
+			childrens[0] = root2;
 			adapter.setExplorerController(explorerController);
 		}
 
@@ -42,10 +42,14 @@ public class TerminalAppStarter extends Application {
 			FXMLLoader loader = new FXMLLoader();
 			Parent root1 = loader.load(sceneStream);
 			fxmlController = loader.getController();
-			pane.getItems().add(root1);
+			childrens[1] = root1;
 			adapter.setFxmlController(fxmlController);
 		}
 
+		var pane = new SplitPane(childrens);
+		pane.setDividerPosition(0, 0.15);
+		pane.setDividerPosition(1, 0.8);
+		
 		explorerController.setAdapter(adapter);
 		fxmlController.setAdapter(adapter);
 

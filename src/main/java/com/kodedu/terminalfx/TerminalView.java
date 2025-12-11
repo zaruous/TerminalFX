@@ -6,16 +6,13 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.io.FileUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kodedu.terminalfx.annotation.WebkitCall;
-import com.kodedu.terminalfx.config.PropertiesUtil;
 import com.kodedu.terminalfx.config.TerminalConfig;
 import com.kodedu.terminalfx.helper.ThreadHelper;
 
@@ -23,7 +20,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.fxml.FXML;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Pane;
@@ -50,7 +46,7 @@ public class TerminalView extends Pane {
 					if (Objects.nonNull(tempDirectory) && Files.exists(tempDirectory)) {
 						FileUtils.deleteDirectory(tempDirectory.toFile());
 					}
-				} catch (IOException ex) {
+				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
 			}
@@ -91,7 +87,7 @@ public class TerminalView extends Pane {
 	private void initializeResources() {
 		try {
 			if(Objects.isNull(tempDirectory) || Files.notExists(tempDirectory)){
-				this.tempDirectory = Files.createTempDirectory("TerminalFX_Temp");
+				TerminalView.tempDirectory = Files.createTempDirectory("TerminalFX_Temp");
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
